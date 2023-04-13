@@ -1,0 +1,57 @@
+library(leaflet)
+library(openxlsx)
+library(htmltools)
+library(htmlwidgets)
+library(sp)
+
+sightings <- read.xlsx("sightings.xlsx")
+sightings$icon_path <- paste("Bird_Images", sightings$icon_path, sep = "/")
+sightings$common_name <- as.factor(sightings$common_name)
+sightings$scientific_name <- as.factor(sightings$scientific_name)
+sightings$date <- as.Date(sightings$date - 2, origin = "1900-01-01")
+
+birdMap <- leaflet(sightings) %>%
+  addProviderTiles(providers$CartoDB.Positron)
+
+for(bird in 1:nrow(sightings)) {
+  if (sightings[["first_sighting"]][[bird]]) {
+    birdMap <- birdMap %>%
+      addMarkers(sightings[["long"]][[bird]], sightings[["lat"]][[bird]],
+                 icon = makeIcon(
+                   iconUrl = sightings[["icon_path"]][[bird]],
+                   iconWidth = sightings[["icon_width"]][[bird]], 
+                   iconHeight = sightings[["icon_height"]][[bird]],
+                   iconAnchorX = sightings[["icon_anchor_x"]][[bird]],
+                   iconAnchorY = sightings[["icon_anchor_y"]][[bird]],
+                   popupAnchorX = 1, popupAnchorY = sightings[["icon_height"]][[bird]]*-.75
+                 ),
+                 label = sightings[["common_name"]][[bird]],
+                 popup = paste(sep = "<br/>", 
+                                 paste0("<b>", sightings[["common_name"]][[bird]], "</b>"),
+                                 paste("First seen", 
+                                       format(sightings[["date"]][[bird]], "%B %d, %Y")),
+                                 sightings[["location_description"]][[bird]])
+      ) 
+  } else {
+    birdMap <- birdMap %>%
+      addMarkers(sightings[["long"]][[bird]], sightings[["lat"]][[bird]],
+                 icon = makeIcon(
+                   iconUrl = sightings[["icon_path"]][[bird]],
+                   iconWidth = sightings[["icon_width"]][[bird]], 
+                   iconHeight = sightings[["icon_height"]][[bird]],
+                   iconAnchorX = sightings[["icon_anchor_x"]][[bird]],
+                   iconAnchorY = sightings[["icon_anchor_y"]][[bird]]
+                 ),
+                 label = sightings[["common_name"]][[bird]],
+                 group = "Show all sightings")
+  }
+}
+  
+birdMap <- birdMap %>%
+  addLayersControl(
+    overlayGroups = c("Show all sightings")
+  )
+
+birdMap
+saveWidget(birdMap, "birdMap.html")
+
